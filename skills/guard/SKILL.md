@@ -23,46 +23,42 @@ The user invokes `/guard <subcommand>`. Parse the subcommand and execute the cor
 
 ## Execution
 
-For each subcommand, run the guard.sh script located relative to this plugin:
+For each subcommand, run the guard.sh script. The `${CLAUDE_PLUGIN_ROOT}` environment variable points to the plugin directory:
 
 ```bash
-# Determine plugin directory
-PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../.." && pwd)"
-
-# Execute the requested subcommand
-bash "$PLUGIN_DIR/scripts/guard.sh" <subcommand> [options]
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/guard.sh" <subcommand> [options]
 ```
 
 ### Concrete examples:
 
 **`/guard ram`**
 ```bash
-bash "$PLUGIN_DIR/scripts/guard.sh" ram
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/guard.sh" ram
 ```
 
 **`/guard clean --dry-run`**
 ```bash
-bash "$PLUGIN_DIR/scripts/guard.sh" clean --dry-run
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/guard.sh" clean --dry-run
 ```
 
 **`/guard clean`**
 ```bash
-bash "$PLUGIN_DIR/scripts/guard.sh" clean
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/guard.sh" clean
 ```
 
 **`/guard sessions`**
 ```bash
-bash "$PLUGIN_DIR/scripts/guard.sh" sessions
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/guard.sh" sessions
 ```
 
 **`/guard auto --dry-run`**
 ```bash
-bash "$PLUGIN_DIR/scripts/guard.sh" auto --dry-run
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/guard.sh" auto --dry-run
 ```
 
 **`/guard auto`**
 ```bash
-bash "$PLUGIN_DIR/scripts/guard.sh" auto
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/guard.sh" auto
 ```
 
 ## Important Notes
