@@ -4,6 +4,10 @@ Claude Code process resource manager plugin — one command to see where your me
 
 **Zero dependencies.** Pure shell, only uses macOS/Linux built-in tools (`ps`, `awk`, `grep`, `kill`).
 
+## Demo
+
+[![asciicast](https://asciinema.org/a/el6tjtE9BRzlKY5m.svg)](https://asciinema.org/a/el6tjtE9BRzlKY5m)
+
 ## The Memory Leak Problem
 
 Claude Code spawns dozens of child processes per session — subagents, MCP servers, workers. When sessions end abnormally (terminal force-close, crash, network drop), these processes become **orphans** (PPID=1) and keep consuming RAM/CPU silently.
