@@ -1,0 +1,10 @@
+{
+  "name": "claude-guard",
+  "title": "Claude Guard - Process Resource Manager",
+  "description": "Visualize RAM/CPU usage, detect orphan processes, manage sessions, and auto-cleanup for Claude Code. Prevents memory leaks from zombie subagents and MCP servers.",
+  "categories": ["developer-tools", "system-management"],
+  "keywords": ["process-management", "memory", "cleanup", "orphan-processes", "mcp-server", "resource-monitor"],
+  "repository": "https://github.com/xagent-team/claude-guard",
+  "license": "Apache-2.0",
+  "minClaudeCodeVersion": "1.0.0"
+}

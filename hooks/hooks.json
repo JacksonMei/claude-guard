@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(dirname \"$0\")/../hooks/stop-cleanup.sh\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

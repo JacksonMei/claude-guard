@@ -1,0 +1,27 @@
+{
+  "name": "claude-guard",
+  "version": "1.0.0",
+  "description": "Claude Code process resource manager - visualize and manage sessions, subagents, and MCP server processes",
+  "author": "xagent",
+  "homepage": "https://github.com/xagent-team/claude-guard",
+  "skills": [
+    {
+      "name": "guard",
+      "path": "skills/guard/SKILL.md",
+      "description": "Visualize and manage Claude Code process resources"
+    }
+  ],
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$PLUGIN_DIR\"/hooks/stop-cleanup.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}
