@@ -53,14 +53,16 @@ _tree_rss() {
         [ -n "$crss" ] && tree_kb=$((tree_kb + crss))
     done < <(pgrep -P "$pid" 2>/dev/null)
 
-    for cpid in "${children[@]}"; do
-        while IFS= read -r gcpid; do
-            [ -z "$gcpid" ] && continue
-            local gcrss
-            gcrss=$(ps -p "$gcpid" -o rss= 2>/dev/null | tr -d ' ')
-            [ -n "$gcrss" ] && tree_kb=$((tree_kb + gcrss))
-        done < <(pgrep -P "$cpid" 2>/dev/null)
-    done
+    if [ ${#children[@]} -gt 0 ]; then
+        for cpid in "${children[@]}"; do
+            while IFS= read -r gcpid; do
+                [ -z "$gcpid" ] && continue
+                local gcrss
+                gcrss=$(ps -p "$gcpid" -o rss= 2>/dev/null | tr -d ' ')
+                [ -n "$gcrss" ] && tree_kb=$((tree_kb + gcrss))
+            done < <(pgrep -P "$cpid" 2>/dev/null)
+        done
+    fi
 
     echo $((tree_kb / 1024))
 }
@@ -388,7 +390,8 @@ cmd_auto() {
                 killed=$((killed + 1))
                 freed_mb=$((freed_mb + brss))
                 # macOS notification
-                osascript -e "display notification \"Killed session PID $bpid — ${brss} MB\" with title \"Claude Guard\" subtitle \"Bloated session reaped\"" 2>/dev/null &
+                command -v osascript >/dev/null 2>&1 && \
+                    osascript -e "display notification \"Killed session PID $bpid — ${brss} MB\" with title \"Claude Guard\" subtitle \"Bloated session reaped\"" 2>/dev/null &
             fi
         done
     fi
@@ -422,7 +425,8 @@ cmd_auto() {
     if [ "$killed" -gt 0 ]; then
         _ok "Reaped $killed session(s), freed ~${freed_mb} MB"
         if ! $dry_run; then
-            osascript -e "display notification \"Reaped $killed session(s), freed ~${freed_mb} MB\" with title \"Claude Guard\" subtitle \"Cleanup complete\"" 2>/dev/null &
+            command -v osascript >/dev/null 2>&1 && \
+                osascript -e "display notification \"Reaped $killed session(s), freed ~${freed_mb} MB\" with title \"Claude Guard\" subtitle \"Cleanup complete\"" 2>/dev/null &
         fi
     elif $dry_run && [ ${#bloated_pids[@]} -eq 0 ] && [ "$remaining" -le "$CC_MAX_SESSIONS" ]; then
         _ok "All clear — no sessions to reap."
