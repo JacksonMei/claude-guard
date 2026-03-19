@@ -8,7 +8,7 @@ set -euo pipefail
 VERSION="1.0.0"
 
 # Process detection patterns
-PAT_SESSION='claude --dangerously'
+# Sessions: claude on a TTY (or with --dangerously), excluding subagents/MCP
 PAT_SUBAGENT='claude.*stream-json'
 PAT_MCP='npm exec mcp-|npx.*mcp-server|node.*mcp-server|worker-service\.cjs|bun.*worker-service|node.*sequential-thinking|uv.*chroma-mcp|python.*chroma-mcp|npm exec @supabase|npm exec @upstash'
 PAT_ALL="claude|${PAT_MCP}"
@@ -22,6 +22,19 @@ MCP_WHITELIST='supabase|@stripe/mcp|context7|claude-mem|chroma-mcp'
 : "${CC_MAX_RSS_MB:=4096}"
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
+
+# Detect Claude CLI session PIDs: TTY-attached 'claude' processes, excluding subagents/MCP
+# Also matches 'claude --dangerously' for backward compat
+_get_session_pids() {
+    {
+        # Method 1: claude processes attached to a real TTY (not "??")
+        ps -eo pid,tty,command 2>/dev/null | awk '
+            $2 != "??" && /[c]laude/ && !/stream-json/ && !/mcp/ && !/worker-service/ && !/chroma/ && !/snapshot/ {print $1}
+        '
+        # Method 2: legacy --dangerously pattern (for older Claude versions)
+        ps -eo pid,command 2>/dev/null | grep "[c]laude --dangerously" | awk '{print $1}'
+    } | sort -un
+}
 
 # Calculate tree RSS (MB) for a given PID: process + all descendants
 _tree_rss() {
@@ -109,17 +122,19 @@ cmd_ram() {
     printf "  %-7s %8s %6s %s\n" "-------" "--------" "------" "--------------"
 
     local session_count=0 session_kb=0
-    while IFS= read -r line; do
-        [ -z "$line" ] && continue
-        local pid rss cpu etime
-        pid=$(echo "$line" | awk '{print $1}')
-        rss=$(echo "$line" | awk '{print $2}')
-        cpu=$(echo "$line" | awk '{print $3}')
-        etime=$(echo "$line" | awk '{print $4}')
+    while IFS= read -r pid; do
+        [ -z "$pid" ] && continue
+        local info
+        info=$(ps -p "$pid" -o rss=,%cpu=,etime= 2>/dev/null)
+        [ -z "$info" ] && continue
+        local rss cpu etime
+        rss=$(echo "$info" | awk '{print $1}')
+        cpu=$(echo "$info" | awk '{print $2}')
+        etime=$(echo "$info" | awk '{print $3}')
         printf "  %-7s %7d %6s %s\n" "$pid" "$((rss/1024))" "${cpu}%" "$etime"
         session_count=$((session_count + 1))
         session_kb=$((session_kb + rss))
-    done < <(ps -eo pid,rss,%cpu,etime,command 2>/dev/null | grep "[c]laude --dangerously" | awk '{print $1, $2, $3, $4}')
+    done < <(_get_session_pids)
 
     echo ""
     _info "Sessions: $session_count total, $((session_kb/1024)) MB"
@@ -155,7 +170,7 @@ cmd_sessions() {
     local session_pids=()
     while IFS= read -r line; do
         session_pids+=("$line")
-    done < <(ps -eo pid,command 2>/dev/null | grep "[c]laude --dangerously" | awk '{print $1}')
+    done < <(_get_session_pids)
 
     local session_count=0 idle_count=0 total_mb=0
 
@@ -203,7 +218,7 @@ cmd_sessions() {
 
     echo ""
     _info "Sessions: $session_count total, $idle_count idle"
-    _info "Total RAM (with children): ${total_mb} MB ($(awk "BEGIN {printf \"%.1f\", $total_mb/1024}") GB)"
+    _info "Total RAM (with children): ${total_mb} MB ($(echo "$total_mb" | awk '{printf "%.1f", $1/1024}') GB)"
 
     if [ "$idle_count" -gt 0 ] && [ "$session_count" -gt 0 ]; then
         local idle_mb=$((total_mb * idle_count / session_count))
@@ -212,6 +227,7 @@ cmd_sessions() {
     fi
 
     [ "$session_count" -ge 4 ] && _warn "$session_count sessions is excessive (each = 400-900 MB)"
+    return 0
 }
 
 # ─── cmd_clean: clean orphan processes ───────────────────────────────────────
@@ -309,7 +325,7 @@ cmd_auto() {
     local session_pids=()
     while IFS= read -r line; do
         session_pids+=("$line")
-    done < <(ps -eo pid,command 2>/dev/null | grep "[c]laude --dangerously" | awk '{print $1}')
+    done < <(_get_session_pids)
 
     local session_count=${#session_pids[@]}
     if [ "$session_count" -eq 0 ]; then
