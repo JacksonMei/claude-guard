@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Claude Code process resource manager - visualize and manage sessions, subagents, and MCP server processes",
   "author": "xagent",
-  "homepage": "https://github.com/xagent-team/claude-guard",
+  "homepage": "https://github.com/JacksonMei/claude-guard",
   "skills": [
     {
       "name": "guard",
