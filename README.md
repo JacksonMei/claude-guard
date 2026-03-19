@@ -6,7 +6,7 @@ Claude Code process resource manager plugin — one command to see where your me
 
 ## Demo
 
-[![asciicast](https://asciinema.org/a/el6tjtE9BRzlKY5m.svg)](https://asciinema.org/a/el6tjtE9BRzlKY5m)
+![claude-guard demo](docs/demo.gif)
 
 ## The Memory Leak Problem
 
