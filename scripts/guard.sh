@@ -245,7 +245,8 @@ cmd_clean() {
 
     for pgid in $orphan_pgids; do
         local leader_cmd
-        leader_cmd=$(ps -o command= -p "$pgid" 2>/dev/null)
+        leader_cmd=$(ps -o command= -p "$pgid" 2>/dev/null || true)
+        [ -z "$leader_cmd" ] && continue
         if ! echo "$leader_cmd" | grep -qE "claude.*stream-json|claude.*--session-id"; then
             continue
         fi
@@ -267,11 +268,11 @@ cmd_clean() {
         fi
     done
 
-    # Phase 2: Pattern-based fallback
+    # Phase 2: Pattern-based fallback (only orphans with PPID=1)
     local orphan_count
-    orphan_count=$(ps aux 2>/dev/null | grep -E "[c]laude.*stream-json|[c]laude.*--dangerously.*\?\?" | grep -v grep | wc -l | tr -d ' ')
+    orphan_count=$(ps -eo ppid,command 2>/dev/null | awk '$1 == 1' | { grep -E "[c]laude.*stream-json" || true; } | wc -l | tr -d ' ')
     local mcp_count
-    mcp_count=$(ps aux 2>/dev/null | grep -E "[n]pm exec @upstash|[n]pm exec mcp-|[n]px.*mcp-server|[n]ode.*sequential-thinking|[b]un.*worker-service" | grep -v grep | wc -l | tr -d ' ')
+    mcp_count=$(ps -eo ppid,command 2>/dev/null | awk '$1 == 1' | { grep -E "[n]pm exec @upstash|[n]pm exec mcp-|[n]px.*mcp-server|[n]ode.*sequential-thinking|[b]un.*worker-service|[w]orker-service\.cjs" || true; } | wc -l | tr -d ' ')
 
     if [ "$pgid_kills" -eq 0 ] && [ "$orphan_count" -eq 0 ] && [ "$mcp_count" -eq 0 ]; then
         _ok "No orphan processes found."
@@ -286,23 +287,22 @@ cmd_clean() {
         if $dry_run; then
             _info "[DRY-RUN] Would clean $orphan_count subagents + $mcp_count MCP stragglers"
         else
-            # Pattern-based kills for stragglers (skip whitelisted)
-            ps aux 2>/dev/null | grep "[c]laude.*stream-json" | awk '$7 == "??" {print $2}' | xargs kill 2>/dev/null || true
-            ps aux 2>/dev/null | grep -E "[n]pm exec @upstash|[n]pm exec mcp-|[n]px.*mcp-server|[n]ode.*sequential-thinking" | awk '$7 == "??" {print $2}' | xargs kill 2>/dev/null || true
-            ps aux 2>/dev/null | grep "[w]orker-service.cjs.*--daemon" | awk '$7 == "??" {print $2}' | xargs kill 2>/dev/null || true
-            ps aux 2>/dev/null | grep "[b]un.*worker-service" | awk '$7 == "??" {print $2}' | xargs kill 2>/dev/null || true
-
-            # PPID=1 fallback
-            ps -eo pid,ppid,command 2>/dev/null | awk '$2 == 1' | grep -E "[c]laude.*stream-json|[n]px.*mcp-server|[w]orker-service\.cjs" | awk '{print $1}' | xargs kill 2>/dev/null || true
+            # Only kill orphans: processes with PPID=1 or detached TTY (??)
+            # Subagents with PPID=1 (orphaned)
+            ps -eo pid,ppid,command 2>/dev/null | awk '$2 == 1' | grep -E "[c]laude.*stream-json" | awk '{print $1}' | xargs kill 2>/dev/null || true
+            # MCP with PPID=1 or detached
+            ps -eo pid,ppid,command 2>/dev/null | awk '$2 == 1' | grep -E "[n]pm exec @upstash|[n]pm exec mcp-|[n]px.*mcp-server|[n]ode.*sequential-thinking" | awk '{print $1}' | xargs kill 2>/dev/null || true
+            ps -eo pid,ppid,command 2>/dev/null | awk '$2 == 1' | grep -E "[w]orker-service\.cjs|[b]un.*worker-service" | grep -vE "$MCP_WHITELIST" | awk '{print $1}' | xargs kill 2>/dev/null || true
         fi
     fi
 
     if ! $dry_run; then
         sleep 1
         local remaining
-        remaining=$(ps aux 2>/dev/null | grep -E "[c]laude.*stream-json|[n]pm exec @upstash|[n]pm exec mcp-|[n]px.*mcp-server" | grep -v grep | wc -l | tr -d ' ')
+        remaining=$(ps aux 2>/dev/null | { grep -E "[c]laude.*stream-json|[n]pm exec @upstash|[n]pm exec mcp-|[n]px.*mcp-server" || true; } | wc -l | tr -d ' ')
         _ok "Cleanup done. Remaining: $remaining processes"
     fi
+    return 0
 }
 
 # ─── cmd_auto: automatic session guard ───────────────────────────────────────
